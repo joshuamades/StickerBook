@@ -55,9 +55,51 @@ The output will be placed in `dist-inline-[network]` folders (e.g., `dist-inline
 ### Debugging Features
 - We added a constant at the top of `src/scenes/Game.js`:
   ```javascript
-  const DEBUG_SHOW_ALL_TARGETS = true;
+  const DEBUG_SHOW_ALL_TARGETS = false;
   ```
-  By default, the game is meant to only show 3 target outlines at a time (corresponding to the 3 active stickers in the tray). You can toggle this flag to instantly show all 50 target outlines for visual debugging and coordinate adjustment.
+  By default, the game is meant to only show 3 target outlines at a time (corresponding to the 3 active stickers in the tray). You can toggle this flag to `true` to instantly show all 50 target outlines for visual debugging and coordinate adjustment.
 
 ### Draggable Sizes
 - The `maxWidth` and `maxHeight` constraints in `layoutDraggableNode` were significantly increased from the original template to make the tray stickers appear larger, matching the client's reference imagery. The numbering badge was also offset specifically to the top-right edge of the scaled stickers.
+
+---
+
+## Game Customization Guide
+
+### How to Change Target Positions
+If you need to change where the target outlines appear on the screen, follow these steps:
+
+1. Open the file `src/scenes/Game.js`.
+2. Locate the `TARGET_LAYOUT` object at the top of the file (around line 10).
+3. Find the ID of the sticker you want to move. The properties are defined as:
+   - `x`: Horizontal position (`0.0` is the left edge, `1.0` is the right edge).
+   - `y`: Vertical position (`0.0` is the top edge, `1.0` is the bottom edge).
+   - `size`: The size ratio of the sticker compared to the screen.
+   - `depth`: Determines layering. Higher numbers appear on top of lower numbers.
+   - `numX` / `numY`: (Optional) Positional offset for the number badge on the target outline.
+
+*Example: To move sticker #1 exactly to the center of the screen, you would change its layout to:*
+```javascript
+  1: { x: 0.50, y: 0.50, size: 0.20, depth: 8, numX: 0, numY: 0 },
+```
+
+### Customizing the "10 Drops to EndScene" Logic
+Currently, the game skips the standard finish animation and proceeds directly to the End Scene exactly after the player correctly drops **10 stickers**.
+
+To modify this threshold or behavior:
+1. Open the file `src/scenes/Game.js`.
+2. Scroll down to the `placeSticker` function (around line 560).
+3. Look for the completion check block that looks like this:
+   ```javascript
+    this.completedCount += 1;
+
+    if (this.completedCount >= 10) {
+      this.time.delayedCall(520, () => {
+        this.scene.launch("EndScene");
+        this.scene.pause();
+      });
+      return;
+    }
+   ```
+4. **To change the drop limit:** Replace the `10` in the `this.completedCount >= 10` line with your desired number of drops (e.g., `5` for five drops, or `15`).
+5. **To change the delay before the transition:** Modify the `520` (milliseconds) in `this.time.delayedCall(520, ...)` if you'd prefer to wait a little longer or shorter before the end scene pops up.

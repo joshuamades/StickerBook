@@ -130,8 +130,8 @@ export class Game extends Phaser.Scene {
   create() {
     this.adNetworkSetup();
     this.bgmSfx = this.sound.add("bgm", { loop: true, volume: 0.2 });
-    this.correctSfx = this.sound.add("audioCorrectAnswer", { volume: 0.35 });
-    this.wrongSfx = this.sound.add("audioWrongAnswer", { volume: 0.3 });
+    this.correctSfx = this.sound.add("audioCorrectAnswer", { volume: 0.2 });
+    this.wrongSfx = this.sound.add("audioWrongAnswer", { volume: 0.2 });
     this.finishedSfx = this.sound.add("audioFinished", { volume: 0.4 });
     this.hasStartedBgm = false;
 
@@ -141,13 +141,20 @@ export class Game extends Phaser.Scene {
     this.targetNodes = new Map();
     this.draggableNodes = new Map();
     this.placedNodes = [];
-    this.motionGhosts = [];
     this.isDragging = false;
 
     this.background = this.add
       .image(0, 0, "backgroundBgColoredWhiteExtended1")
       .setOrigin(0.5)
       .setDepth(-10);
+
+    this.tutorialOverlay = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.75)
+      .setOrigin(0)
+      .setDepth(240)
+      .setInteractive()
+      .setVisible(false);
+    this.isTutorialActive = true;
+
     this.tray = this.add.image(0, 0, "blueCointainer").setOrigin(0.5).setDepth(200);
     this.handGuide = this.add
       .image(0, 0, "handIcon")
@@ -227,7 +234,21 @@ export class Game extends Phaser.Scene {
     });
 
     this.layoutGameObjects();
-    this.resetIdleGuide();
+
+    if (this.isTutorialActive && this.currentBatch.length > 0) {
+      this.tutorialOverlay.setVisible(true).setAlpha(0.75);
+      const firstSticker = this.currentBatch[0];
+      const draggable = this.draggableNodes.get(firstSticker.id);
+      const target = this.targetNodes.get(firstSticker.id);
+      
+      if (draggable) draggable.setDepth(245);
+      if (target) target.setDepth(242);
+
+      this.clearIdleGuide();
+      this.showIdleGuide();
+    } else {
+      this.resetIdleGuide();
+    }
   }
 
   createTargetNode(sticker) {
@@ -304,8 +325,6 @@ export class Game extends Phaser.Scene {
     this.clearIdleGuide();
     this.draggableNodes.forEach((node) => node.destroy(true));
     this.draggableNodes.clear();
-    this.motionGhosts.forEach((ghost) => ghost.destroy());
-    this.motionGhosts = [];
   }
 
   applyBackgroundLayout(width, height, isLandscape, viewportAspect) {
@@ -316,13 +335,13 @@ export class Game extends Phaser.Scene {
     const sourceWidth = Math.max(this.background.width || 1, 1);
     const sourceHeight = Math.max(this.background.height || 1, 1);
     const sourceAspect = sourceWidth / sourceHeight;
-    const widePortrait = !isLandscape && viewportAspect > sourceAspect;
+    const isTablet = viewportAspect > 0.65;
+    const isTallPhone = !isLandscape && viewportAspect < 0.52;
+    const isNormalPhone = !isTallPhone && !isTablet;
 
-    // In portrait phones, use Math.max to cover the screen entirely (no blue bars top/bottom).
-    // In landscape OR wide-portrait (tablets), use Math.min to fit the screen vertically, keeping the exact portrait layout and letterboxing the sides.
-    const scale = (isLandscape || widePortrait)
-      ? Math.min(width / sourceWidth, height / sourceHeight)
-      : Math.max(width / sourceWidth, height / sourceHeight);
+    const scale = isNormalPhone
+      ? Math.max(width / sourceWidth, height / sourceHeight)
+      : Math.min(width / sourceWidth, height / sourceHeight);
 
     this.background.setPosition(width * 0.5, height * 0.5);
     this.background.setScale(scale);
@@ -348,10 +367,20 @@ export class Game extends Phaser.Scene {
     const viewportAspect = viewportWidth / viewportHeight;
     const isLandscape = viewportWidth > viewportHeight;
 
+    if (this.tutorialOverlay) {
+      this.tutorialOverlay.setPosition(0, 0).setSize(width, height);
+    }
+
     this.applyBackgroundLayout(width, height, isLandscape, viewportAspect);
     this.currentLayout = this.computeLayout(width, height, isLandscape);
     this.layoutGameObjects();
-    this.resetIdleGuide();
+
+    if (this.isTutorialActive && this.currentBatch && this.currentBatch.length > 0) {
+      this.clearIdleGuide();
+      this.showIdleGuide();
+    } else {
+      this.resetIdleGuide();
+    }
   }
 
   computeLayout(width, height, isLandscape) {
@@ -359,7 +388,7 @@ export class Game extends Phaser.Scene {
     const trayMinHeight = Math.min(210, board.height * 0.2);
     const trayMaxHeight = Math.min(390, board.height * 0.28);
     const trayHeight = Phaser.Math.Clamp(board.height * 0.205, trayMinHeight, trayMaxHeight);
-    const trayY = board.y + board.height - trayHeight * 0.5;
+    const trayY = height - trayHeight * 0.5;
     const boardInsetX = board.width * 0.015;
     const boardTop = board.y + board.height * 0.02;
     const boardBottom = board.y + board.height - trayHeight - board.height * 0.025;
@@ -406,13 +435,9 @@ export class Game extends Phaser.Scene {
 
     const layout = this.currentLayout;
     if (this.tray) {
-      const trayScale = Math.max(
-        layout.board.width / this.tray.width,
-        layout.trayHeight / this.tray.height,
-      );
       this.tray
         .setPosition(layout.board.x + layout.board.width * 0.5, layout.trayY)
-        .setScale(trayScale)
+        .setDisplaySize(layout.width, layout.trayHeight)
         .setDepth(200);
     }
 
@@ -434,7 +459,7 @@ export class Game extends Phaser.Scene {
     this.currentBatch.forEach((sticker, index) => {
       const draggable = this.draggableNodes.get(sticker.id);
       const dragX = layout.draggableXs[index] ?? layout.width * 0.5;
-      const dragY = layout.trayY + layout.trayHeight * 0.12;
+      const dragY = layout.trayY;
 
       if (draggable && !draggable.isPlaced && !draggable.isDragging) {
         this.layoutDraggableNode(draggable, dragX, dragY);
@@ -501,10 +526,29 @@ export class Game extends Phaser.Scene {
     return gameObject?.dragContainer || gameObject;
   }
 
-  handleDragStart(_pointer, gameObject) {
+  handleDragStart(pointer, gameObject) {
     const draggable = this.resolveDraggableNode(gameObject);
     if (!draggable?.sticker || draggable.isPlaced) {
       return;
+    }
+
+    if (this.isTutorialActive) {
+      this.isTutorialActive = false;
+      if (this.tutorialOverlay) {
+        this.tutorialOverlay.disableInteractive();
+        this.tweens.add({
+          targets: this.tutorialOverlay,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => this.tutorialOverlay.setVisible(false)
+        });
+      }
+      const firstSticker = this.currentBatch[0];
+      const target = this.targetNodes.get(firstSticker.id);
+      if (target) {
+        const targetLayout = TARGET_LAYOUT[firstSticker.id];
+        target.setDepth(targetLayout ? targetLayout.depth : 4);
+      }
     }
 
     this.clearIdleGuide();
@@ -513,7 +557,6 @@ export class Game extends Phaser.Scene {
     draggable.isDragging = true;
     draggable.setDepth(220);
     draggable.setScale(draggable.baseScale * 1.08);
-    this.createMotionGhosts(draggable);
   }
 
   handleDrag(pointer, gameObject) {
@@ -523,7 +566,6 @@ export class Game extends Phaser.Scene {
     }
 
     draggable.setPosition(pointer.x, pointer.y);
-    this.updateMotionGhosts(draggable);
   }
 
   handleDragEnd(_pointer, gameObject) {
@@ -534,7 +576,6 @@ export class Game extends Phaser.Scene {
 
     this.isDragging = false;
     draggable.isDragging = false;
-    this.fadeMotionGhosts();
 
     const target = this.targetNodes.get(draggable.sticker.id);
     const distance = target
@@ -600,8 +641,7 @@ export class Game extends Phaser.Scene {
 
     if (this.completedCount >= 10) {
       this.time.delayedCall(520, () => {
-        this.scene.launch("EndScene");
-        this.scene.pause();
+        this.finishGame();
       });
       return;
     }
@@ -639,45 +679,6 @@ export class Game extends Phaser.Scene {
       maxHeight / Math.max(image.height, 1),
       target.dropScale * 1.2,
     );
-  }
-
-  createMotionGhosts(draggable) {
-    this.motionGhosts.forEach((ghost) => ghost.destroy());
-    this.motionGhosts = [0.18, 0.12, 0.07].map((alpha, index) =>
-      this.add
-        .image(draggable.x, draggable.y, draggable.sticker.outlineKey)
-        .setOrigin(0.5)
-        .setScale(draggable.scale)
-        .setAlpha(alpha)
-        .setTint(0x93c8ff)
-        .setDepth(45 - index),
-    );
-  }
-
-  updateMotionGhosts(draggable) {
-    this.motionGhosts.forEach((ghost, index) => {
-      this.tweens.killTweensOf(ghost);
-      this.tweens.add({
-        targets: ghost,
-        x: draggable.x,
-        y: draggable.y,
-        scale: draggable.scale * (1 + index * 0.04),
-        duration: 55 + index * 45,
-        ease: "Sine.Out",
-      });
-    });
-  }
-
-  fadeMotionGhosts() {
-    this.motionGhosts.forEach((ghost) => {
-      this.tweens.add({
-        targets: ghost,
-        alpha: 0,
-        duration: 140,
-        onComplete: () => ghost.destroy(),
-      });
-    });
-    this.motionGhosts = [];
   }
 
   playStarBurst(x, y, targetScale) {
@@ -820,9 +821,39 @@ export class Game extends Phaser.Scene {
 
   finishGame() {
     this.clearIdleGuide();
+
+    this.draggableNodes.forEach((node) => node.setVisible(false));
+    STICKERS.forEach((sticker) => {
+      const target = this.targetNodes.get(sticker.id);
+      if (target && !target.isPlaced) {
+        target.isPlaced = true;
+        target.setVisible(false);
+        const targetLayout = TARGET_LAYOUT[sticker.id];
+        const depth = targetLayout ? targetLayout.depth : 4;
+        const placed = this.add
+          .image(target.dropX, target.dropY, sticker.coloredKey)
+          .setOrigin(0.5)
+          .setDepth(depth)
+          .setAlpha(0);
+        placed.stickerId = sticker.id;
+        this.placedNodes.push(placed);
+        this.layoutPlacedImage(placed);
+        this.tweens.add({
+          targets: placed,
+          alpha: { from: 0, to: 1 },
+          scale: { from: placed.scale * 0.9, to: placed.scale },
+          duration: 300,
+          ease: "Sine.Out",
+        });
+      }
+    });
+
     if (this.background) {
       this.background.setTexture("backgroundBgColoredExtended1");
       this.applyResponsiveLayout(this.scale.gameSize);
+    }
+    if (this.tray) {
+      this.tray.setVisible(false);
     }
     this.playBackgroundCompleteBurst();
     if (this.finishedSfx) {

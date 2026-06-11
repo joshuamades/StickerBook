@@ -21,6 +21,10 @@ export class EndScene extends Phaser.Scene {
     this.ctaTween = null;
     this.viewportLayoutTimeout = null;
 
+    document.body.style.backgroundColor = "#F8E6BA";
+    const app = document.getElementById("app");
+    if (app) app.style.backgroundColor = "#F8E6BA";
+
     this.overlay = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.25).setOrigin(0);
     this.logo = this.add.image(0, 0, "logo").setOrigin(0.5);
     this.cta = this.add
@@ -97,6 +101,10 @@ export class EndScene extends Phaser.Scene {
     const centerX = width * 0.5;
     const centerY = height * 0.5;
 
+    const gameScene = this.scene.get("Game");
+    if (gameScene && gameScene.backgroundBounds) {
+      // Just so we can calculate if needed, but we force full screen for overlay
+    }
     this.overlay.setPosition(0, 0).setSize(width, height).setDepth(1);
 
     const logoTargetWidth = isLandscape
