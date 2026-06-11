@@ -21,9 +21,9 @@ export class EndScene extends Phaser.Scene {
     this.ctaTween = null;
     this.viewportLayoutTimeout = null;
 
-    document.body.style.backgroundColor = "#F8E6BA";
+    document.body.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000 calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.31% + .5px), #F8E6BA 100%)";
     const app = document.getElementById("app");
-    if (app) app.style.backgroundColor = "#F8E6BA";
+    if (app) app.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000 calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.31% + .5px), #F8E6BA 100%)";
 
     this.overlay = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.25).setOrigin(0);
     this.logo = this.add.image(0, 0, "logo").setOrigin(0.5);

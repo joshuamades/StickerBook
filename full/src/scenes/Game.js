@@ -876,9 +876,14 @@ export class Game extends Phaser.Scene {
     });
 
     if (this.background) {
+      this.background.setVisible(true);
       this.background.setTexture("backgroundBgColoredExtended1");
       this.applyResponsiveLayout(this.scale.gameSize);
     }
+    const gradient = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000 calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.3% + .5px), #F8E6BA 100%)";
+    document.body.style.background = gradient;
+    const app = document.getElementById("app");
+    if (app) app.style.background = gradient;
     if (this.tray) {
       this.tray.setVisible(false);
     }
