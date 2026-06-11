@@ -4,7 +4,6 @@ import { Base64Manager } from "../utils/Base64Manager.js";
 import { LoadBase64Audio } from "../utils/LoadBase64Audio.js";
 import { adReady } from "../networkPlugin";
 
-import { audioBGMMP3 } from '../../media/audio_BGM.mp3.js';
 import { audioCorrectAnswerMP3 } from '../../media/audio_Correct Answer.mp3.js';
 import { audioFinishedMP3 } from '../../media/audio_Finished.mp3.js';
 import { audioWrongAnswerMP3 } from '../../media/audio_Wrong Answer.mp3.js';
@@ -327,10 +326,9 @@ const imageAssets = [
 ];
 
 const audioAssets = [
-  { key: "bgm", data: audioBGMMP3 },
-  { key: "audioCorrectAnswer", data: audioCorrectAnswerMP3 },
-  { key: "audioFinished", data: audioFinishedMP3 },
-  { key: "audioWrongAnswer", data: audioWrongAnswerMP3 },
+  { key: "correct", data: audioCorrectAnswerMP3, config: { instances: 4 } },
+  { key: "wrong", data: audioWrongAnswerMP3, config: { instances: 4 } },
+  { key: "finished", data: audioFinishedMP3, config: { instances: 2 } },
 ];
 
 export class Preloader extends Phaser.Scene {

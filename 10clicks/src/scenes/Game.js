@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 
 import { adStart, onAudioVolumeChange } from "../networkPlugin";
+import { createNativeBgm, raiseNativeBgmVolume, startNativeBgmSilently, stopNativeBgm, unlockHtml5AudioTags } from "../utils/AudioUnlocker";
+import { audioBGMMP3 } from "../../media/audio_BGM.mp3.js";
 
 const BATCH_SIZE = 3;
 const IDLE_HINT_DELAY = 2000;
@@ -16,7 +18,7 @@ const TARGET_LAYOUT = {
   6: { x: 0.78, y: 0.0475, size: 0.15, depth: 12, numX: 0, numY: 30 },
   7: { x: 0.78, y: 0.42, size: 0.34, depth: 10, numX: 0, numY: 0 },
   8: { x: 0.52, y: 0.62, size: 0.12, depth: 12, numX: 0, numY: 50 },
-  9: { x: 0.87, y: 0.68, size: 0.16, depth: 12, numX: 0, numY: 0 },
+  9: { x: 0.87, y: 0.68, size: 0.16, depth: 15, numX: 0, numY: 0 },
   10: { x: 0.17, y: 0.49, size: 0.23, depth: 10, numX: 0, numY: 0 },
   11: { x: 0.34, y: 0.25, size: 0.22, depth: 10, numX: 0, numY: 0 },
   12: { x: 0.7, y: 0.05, size: 0.12, depth: 10, numX: 0, numY: 40 },
@@ -46,7 +48,7 @@ const TARGET_LAYOUT = {
   36: { x: 0.43, y: 0.71, size: 0.23, depth: 13, numX: 0, numY: 0 },
   37: { x: 0.31, y: 0.43, size: 0.25, depth: 7, numX: 0, numY: 0 },
   38: { x: 0.90, y: 0.34, size: 0.13, depth: 10, numX: 0, numY: 0 },
-  39: { x: 0.77, y: 0.72, size: 0.17, depth: 13, numX: 0, numY: 0 },
+  39: { x: 0.77, y: 0.72, size: 0.17, depth: 16, numX: 0, numY: 0 },
   40: { x: 0.15, y: 0.68, size: 0.20, depth: 25, numX: 0, numY: 0 },
   41: { x: 0.48, y: 0.38, size: 0.18, depth: 11, numX: 0, numY: 0 },
   42: { x: 0.58, y: 0.05, size: 0.18, depth: 10, numX: 0, numY: -20 },
@@ -129,10 +131,7 @@ export class Game extends Phaser.Scene {
 
   create() {
     this.adNetworkSetup();
-    this.bgmSfx = this.sound.add("bgm", { loop: true, volume: 0.2 });
-    this.correctSfx = this.sound.add("audioCorrectAnswer", { volume: 0.2 });
-    this.wrongSfx = this.sound.add("audioWrongAnswer", { volume: 0.2 });
-    this.finishedSfx = this.sound.add("audioFinished", { volume: 0.4 });
+    this.bgmAudio = createNativeBgm(audioBGMMP3, { volume: 0.2 });
     this.hasStartedBgm = false;
 
     this.batchIndex = 0;
@@ -196,6 +195,8 @@ export class Game extends Phaser.Scene {
       this.input.off("dragend", this.handleDragEnd, this);
       this.clearIdleGuide();
 
+      stopNativeBgm(this.bgmAudio);
+
       if (this.onViewportLayoutChange) {
         window.removeEventListener("resize", this.onViewportLayoutChange);
         window.removeEventListener("orientationchange", this.onViewportLayoutChange);
@@ -230,6 +231,7 @@ export class Game extends Phaser.Scene {
       const target = this.targetNodes.get(sticker.id);
       if (target) {
         target.setVisible(true);
+        this.startTargetPulse(target);
       }
     });
 
@@ -240,7 +242,7 @@ export class Game extends Phaser.Scene {
       const firstSticker = this.currentBatch[0];
       const draggable = this.draggableNodes.get(firstSticker.id);
       const target = this.targetNodes.get(firstSticker.id);
-      
+
       if (draggable) draggable.setDepth(245);
       if (target) target.setDepth(242);
 
@@ -275,6 +277,7 @@ export class Game extends Phaser.Scene {
     container.sticker = sticker;
     container.outline = outline;
     container.number = number;
+    container.pulseTween = null;
     container.isPlaced = false;
     container.setVisible(DEBUG_SHOW_ALL_TARGETS);
     return container;
@@ -291,11 +294,11 @@ export class Game extends Phaser.Scene {
   createDraggableNode(sticker) {
     const container = this.add.container(0, 0).setDepth(210);
     const image = this.add.image(0, 0, sticker.outlineKey).setOrigin(0.5);
-    const badgeCircle = this.add.circle(0, 0, 34, 0xffffff, 1).setStrokeStyle(4, 0x222222, 1);
+    const badgeCircle = this.add.circle(0, 0, 38, 0xffffff, 1).setStrokeStyle(4, 0x222222, 1);
     const badgeText = this.add
       .text(0, 0, String(sticker.id), {
         fontFamily: "Arial",
-        fontSize: "34px",
+        fontSize: "42px",
         fontStyle: "700",
         color: "#222222",
         align: "center",
@@ -317,6 +320,7 @@ export class Game extends Phaser.Scene {
     image.sticker = sticker;
     image.dragContainer = container;
     image.setInteractive();
+    image.on("pointerdown", () => this.startAudioOnFirstInteraction());
     this.input.setDraggable(image);
     return container;
   }
@@ -327,6 +331,42 @@ export class Game extends Phaser.Scene {
     this.draggableNodes.clear();
   }
 
+  startTargetPulse(target) {
+    if (!target?.outline || target.pulseTween) {
+      return;
+    }
+
+    target.outline.setScale(1);
+    target.pulseTween = this.tweens.add({
+      targets: target.outline,
+      scale: 1.055,
+      alpha: 0.72,
+      duration: 560,
+      ease: "Sine.InOut",
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  stopTargetPulse(target) {
+    if (!target) {
+      return;
+    }
+
+    if (target.pulseTween) {
+      target.pulseTween.stop();
+      target.pulseTween = null;
+    }
+
+    if (target.outline) {
+      target.outline.setScale(1).setAlpha(1);
+    }
+  }
+
+  stopAllTargetPulses() {
+    this.targetNodes.forEach((target) => this.stopTargetPulse(target));
+  }
+
   applyBackgroundLayout(width, height, isLandscape, viewportAspect) {
     if (!this.background) {
       return;
@@ -334,7 +374,6 @@ export class Game extends Phaser.Scene {
 
     const sourceWidth = Math.max(this.background.width || 1, 1);
     const sourceHeight = Math.max(this.background.height || 1, 1);
-    const sourceAspect = sourceWidth / sourceHeight;
     const isTablet = viewportAspect > 0.65;
     const isTallPhone = !isLandscape && viewportAspect < 0.52;
     const isNormalPhone = !isTallPhone && !isTablet;
@@ -509,7 +548,7 @@ export class Game extends Phaser.Scene {
     draggable.baseScale = scale;
     draggable.setPosition(x, y).setScale(scale);
     const badgeX = sourceWidth * 0.25;
-    const badgeY = -sourceHeight * 0.38;
+    const badgeY = -sourceHeight * 0.32;
     const badgeScale = Math.min(0.7 / scale, 1);
     draggable.badgeCircle.setPosition(badgeX, badgeY).setScale(badgeScale);
     draggable.badgeText.setPosition(badgeX, badgeY).setScale(badgeScale);
@@ -576,6 +615,7 @@ export class Game extends Phaser.Scene {
 
     this.isDragging = false;
     draggable.isDragging = false;
+    raiseNativeBgmVolume(this.bgmAudio);
 
     const target = this.targetNodes.get(draggable.sticker.id);
     const distance = target
@@ -606,6 +646,7 @@ export class Game extends Phaser.Scene {
     target.setVisible(false);
 
     this.playCorrectSound();
+    this.stopTargetPulse(target);
 
     const targetLayout = TARGET_LAYOUT[draggable.sticker.id];
     const depth = targetLayout ? targetLayout.depth : 4;
@@ -804,23 +845,18 @@ export class Game extends Phaser.Scene {
   }
 
   playCorrectSound() {
-    if (this.correctSfx) {
-      this.correctSfx.play();
-    } else {
-      this.playSwitchComboSound(this.completedCount + 1);
-    }
+    this.sound.play("correct", { volume: 0.35 });
   }
 
   playWrongSound() {
-    if (this.wrongSfx) {
-      this.wrongSfx.play();
-    } else {
-      this.playSwitchSound();
-    }
+    this.sound.play("wrong", { volume: 0.3 });
   }
 
   finishGame() {
+    if (this.isFinished) return;
+    this.isFinished = true;
     this.clearIdleGuide();
+    this.stopAllTargetPulses();
 
     this.draggableNodes.forEach((node) => node.setVisible(false));
     STICKERS.forEach((sticker) => {
@@ -856,9 +892,7 @@ export class Game extends Phaser.Scene {
       this.tray.setVisible(false);
     }
     this.playBackgroundCompleteBurst();
-    if (this.finishedSfx) {
-      this.finishedSfx.play();
-    }
+    this.sound.play("finished", { volume: 0.4 });
     this.time.delayedCall(1050, () => {
       this.scene.launch("EndScene");
       this.scene.pause();
@@ -890,17 +924,12 @@ export class Game extends Phaser.Scene {
   }
 
   playBGMSound() {
-    if (!this.sound || !this.sound.get("bgm")) return false;
-    if (!this.bgmSfx) return false;
-    if (this.bgmSfx.isPlaying) return true;
-    if (this.bgmSfx.isPaused) {
-      this.bgmSfx.resume();
-      return true;
-    }
-    return this.bgmSfx.play();
+    startNativeBgmSilently(this.bgmAudio);
+    return this.bgmAudio?.hasStarted || false;
   }
 
   startAudioOnFirstInteraction() {
+    unlockHtml5AudioTags(this);
     if (this.hasStartedBgm) {
       return;
     }

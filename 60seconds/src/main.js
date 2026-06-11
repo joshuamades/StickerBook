@@ -15,6 +15,9 @@ const gameConfig = {
   height: 1920,
   backgroundColor: "transparent",
   transparent: true,
+  audio: {
+    disableWebAudio: true,
+  },
   scale: {
     mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
