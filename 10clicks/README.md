@@ -13,14 +13,13 @@ This project features a drag-and-drop sticker placement mechanic where users pul
 - Ensure all dependencies are installed via `yarn install` or `npm install`.
 
 ### 2. Optimizing Assets (WebP Conversion)
-To ensure the final build stays under the 5MB limit, all PNG assets should be compressed to WebP:
+To ensure the final build stays under the 5MB limit, all PNG assets are compressed to WebP:
 ```bash
 node scripts/convert-webp.mjs
 ```
-*Note: This script will recursively convert all `.png` files in `public/assets/images` to `.webp` at 75% quality and delete the original PNGs.*
 
 ### 3. Base64 Encoding
-Playable ads often require a single `index.html` file with no external HTTP requests. We convert our WebP and MP3 assets into base64 JS modules:
+Playable ads often require a single `index.html` file with no external HTTP requests. I convert my WebP and MP3 assets into base64 JS modules:
 ```bash
 yarn base64
 ```
@@ -45,7 +44,7 @@ The output will be placed in `dist-inline-[network]` folders (e.g., `dist-inline
 
 ### Layout & Responsiveness
 - **Portrait (Phones):** The background utilizes a "cover" scaling strategy (`Math.max`) to ensure no empty blue bars appear at the top or bottom of modern, tall phone screens.
-- **Landscape & Tablets (Wide Portrait):** We explicitly deviated from the "cover" strategy for wide-aspect-ratio screens. Instead, it uses a "fit" strategy (`Math.min`), which scales the portrait layout down to fit the height of the screen and creates blue letterboxing on the sides. This was necessary to prevent the top/bottom targets from being pushed entirely off-screen.
+- **Landscape & Tablets (Wide Portrait):** I explicitly deviated from the "cover" strategy for wide-aspect-ratio screens. Instead, it uses a "fit" strategy (`Math.min`), which scales the portrait layout down to fit the height of the screen and creates blue letterboxing on the sides. This was necessary to prevent the top/bottom targets from being pushed entirely off-screen.
 
 ### Depth Sorting (Z-Index)
 - **Target Outlines:** The empty numbered outlines are given an artificially high depth boost (`90 + default depth`) so they are always visible *above* any colored stickers that the user has already placed on the board.
@@ -53,7 +52,7 @@ The output will be placed in `dist-inline-[network]` folders (e.g., `dist-inline
 - **Tray UI:** The blue container, hand guide, and tray stickers have been bumped to the `200-250` depth range to guarantee they sit above the boosted target outlines.
 
 ### Debugging Features
-- We added a constant at the top of `src/scenes/Game.js`:
+- I added a constant at the top of `src/scenes/Game.js`:
   ```javascript
   const DEBUG_SHOW_ALL_TARGETS = false;
   ```
