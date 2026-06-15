@@ -15,8 +15,8 @@ const TARGET_LAYOUT = {
   3: { x: 0.28, y: 0.69, size: 0.15, depth: 16, numX: 0, numY: 0 },
   4: { x: 0.16, y: 0.43, size: 0.16, depth: 12, numX: 0, numY: 0 },
   5: { x: 0.42, y: 0.13, size: 0.12, depth: 10, numX: 0, numY: 0 },
-  6: { x: 0.78, y: 0.0475, size: 0.15, depth: 12, numX: 0, numY: 30 },
-  7: { x: 0.78, y: 0.42, size: 0.34, depth: 10, numX: 0, numY: 0 },
+  6: { x: 0.78, y: 0.0475, size: 0.08, depth: 12, numX: 0, numY: 30 },
+  7: { x: 0.78, y: 0.42, size: 0.24, depth: 10, numX: 0, numY: 0 },
   8: { x: 0.52, y: 0.62, size: 0.12, depth: 12, numX: 0, numY: 50 },
   9: { x: 0.87, y: 0.68, size: 0.16, depth: 15, numX: 0, numY: 0 },
   10: { x: 0.17, y: 0.49, size: 0.23, depth: 10, numX: 0, numY: 0 },
@@ -135,7 +135,7 @@ export class Game extends Phaser.Scene {
     this.hasStartedBgm = false;
 
     this.batchIndex = 0;
-    this.completedCount = 0;
+    this.moveCount = 0;
     this.currentBatch = [];
     this.targetNodes = new Map();
     this.draggableNodes = new Map();
@@ -617,6 +617,8 @@ export class Game extends Phaser.Scene {
     draggable.isDragging = false;
     raiseNativeBgmVolume(this.bgmAudio);
 
+    this.moveCount += 1;
+
     const target = this.targetNodes.get(draggable.sticker.id);
     const distance = target
       ? Phaser.Math.Distance.Between(draggable.x, draggable.y, target.dropX, target.dropY)
@@ -628,6 +630,13 @@ export class Game extends Phaser.Scene {
     }
 
     this.playWrongSound();
+
+    if (this.moveCount >= 10) {
+      this.time.delayedCall(260, () => {
+        this.finishGame();
+      });
+    }
+
     this.tweens.add({
       targets: draggable,
       x: draggable.homeX,
@@ -635,7 +644,11 @@ export class Game extends Phaser.Scene {
       scale: draggable.baseScale,
       duration: 260,
       ease: "Back.Out",
-      onComplete: () => this.resetIdleGuide(),
+      onComplete: () => {
+        if (this.moveCount < 10) {
+          this.resetIdleGuide();
+        }
+      },
     });
   }
 
@@ -678,9 +691,8 @@ export class Game extends Phaser.Scene {
     });
 
     this.playStarBurst(target.dropX, target.dropY, target.dropScale);
-    this.completedCount += 1;
 
-    if (this.completedCount >= 10) {
+    if (this.moveCount >= 10) {
       this.time.delayedCall(520, () => {
         this.finishGame();
       });

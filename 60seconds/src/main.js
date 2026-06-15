@@ -19,7 +19,7 @@ const gameConfig = {
     disableWebAudio: true,
   },
   scale: {
-    mode: Phaser.Scale.EXPAND,
+    mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   scene: [Preloader, Game, EndScene],
