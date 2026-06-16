@@ -8,13 +8,22 @@ const BATCH_SIZE = 3;
 const IDLE_HINT_DELAY = 2000;
 const SNAP_DISTANCE_RATIO = 0.12;
 const DEBUG_SHOW_ALL_TARGETS = false;
+const TRAY_FILL_COLOR = 0x68a7e4;
+const TRAY_FILL_CSS_COLOR = "#68a7e4";
+const TUTORIAL_EDGE_FILL_COLOR = "#737373";
+const TUTORIAL_TRAY_FILL_COLOR = "#304d6a";
+const TUTORIAL_OVERLAY_ALPHA = 0.55;
+const TUTORIAL_OVERLAY_SIZE = 5000;
+const TUTORIAL_CANVAS_BACKFILL_COLOR = 0xffffff;
+const GAME_BACKGROUND_GRADIENT = "linear-gradient(to bottom, #ffffff 0%, #ffffff calc(33.3% - .6px), #000000ff calc(33.3% - .6px), #000000 calc(33.4% + .55px), #ffffff calc(33.33% + .5px), #ffffff 100%)";
+const END_BACKGROUND_GRADIENT = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .6px), #000000ff calc(33.3% - .6px), #000000 calc(33.4% + .55px), #F8E6BA calc(33.33% + .5px), #F8E6BA 100%)";
 
 const TARGET_LAYOUT = {
   1: { x: 0.39, y: 0.49, size: 0.20, depth: 8, numX: 0, numY: 0 },
   2: { x: 0.65, y: 0.61, size: 0.15, depth: 10, numX: 0, numY: 0 },
   3: { x: 0.28, y: 0.69, size: 0.15, depth: 16, numX: 0, numY: 0 },
   4: { x: 0.16, y: 0.43, size: 0.16, depth: 12, numX: 0, numY: 0 },
-  5: { x: 0.42, y: 0.13, size: 0.12, depth: 10, numX: 0, numY: 0 },
+  5: { x: 0.42, y: 0.13, size: 0.12, depth: -10, numX: 0, numY: 0 },
   6: { x: 0.78, y: 0.0475, size: 0.08, depth: 12, numX: 0, numY: 30 },
   7: { x: 0.78, y: 0.42, size: 0.24, depth: 10, numX: 0, numY: 0 },
   8: { x: 0.52, y: 0.62, size: 0.12, depth: 12, numX: 0, numY: 50 },
@@ -132,6 +141,9 @@ export class Game extends Phaser.Scene {
 
   create() {
     this.adNetworkSetup();
+
+    this.setPageBackground(GAME_BACKGROUND_GRADIENT);
+
     this.bgmAudio = createNativeBgm(audioBGMMP3, { volume: 0.2 });
     this.hasStartedBgm = false;
 
@@ -148,14 +160,66 @@ export class Game extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(-10);
 
-    this.tutorialOverlay = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.75)
-      .setOrigin(0)
+    this.tutorialCanvasBackfill = this.add.rectangle(
+      0,
+      0,
+      TUTORIAL_OVERLAY_SIZE,
+      TUTORIAL_OVERLAY_SIZE,
+      TUTORIAL_CANVAS_BACKFILL_COLOR,
+      1,
+    )
+      .setOrigin(0.5)
+      .setDepth(-20)
+      .setVisible(false);
+
+    this.tutorialOverlay = this.add.rectangle(0, 0, 1, 1, 0x000000, TUTORIAL_OVERLAY_ALPHA)
+      .setOrigin(0.5)
       .setDepth(240)
-      .setInteractive()
       .setVisible(false);
     this.isTutorialActive = true;
 
-    this.tray = this.add.image(0, 0, "blueCointainer").setOrigin(0.5).setDepth(200);
+    let domOverlay = document.getElementById("html-tutorial-overlay");
+    if (!domOverlay) {
+      domOverlay = document.createElement("div");
+      domOverlay.id = "html-tutorial-overlay";
+      domOverlay.style.position = "fixed";
+      domOverlay.style.top = "50%";
+      domOverlay.style.left = "50%";
+      domOverlay.style.width = `${TUTORIAL_OVERLAY_SIZE}px`;
+      domOverlay.style.height = `${TUTORIAL_OVERLAY_SIZE}px`;
+      domOverlay.style.transform = "translate(-50%, -50%)";
+      domOverlay.style.background = TUTORIAL_EDGE_FILL_COLOR;
+      domOverlay.style.backgroundSize = "100vw 100vh";
+      domOverlay.style.pointerEvents = "none";
+      domOverlay.style.zIndex = "0";
+      document.body.appendChild(domOverlay);
+
+      const appDiv = document.getElementById("app");
+      if (appDiv) {
+        appDiv.style.position = "relative";
+        appDiv.style.zIndex = "2";
+      }
+    }
+    this.htmlTutorialOverlay = domOverlay;
+    this.htmlTutorialOverlay.style.opacity = "1";
+    this.htmlTutorialOverlay.style.display = "none";
+
+    let domTrayFill = document.getElementById("html-tray-fill");
+    if (!domTrayFill) {
+      domTrayFill = document.createElement("div");
+      domTrayFill.id = "html-tray-fill";
+      domTrayFill.style.position = "fixed";
+      domTrayFill.style.left = "-6px";
+      domTrayFill.style.bottom = "0";
+      domTrayFill.style.width = "calc(100vw + 12px)";
+      domTrayFill.style.pointerEvents = "none";
+      domTrayFill.style.zIndex = "1";
+      document.body.appendChild(domTrayFill);
+    }
+    this.htmlTrayFill = domTrayFill;
+    this.htmlTrayFill.style.zIndex = "1";
+
+    this.trayFill = this.add.rectangle(0, 0, 1, 1, TRAY_FILL_COLOR, 1).setOrigin(0.5).setDepth(200);
     this.handGuide = this.add
       .image(0, 0, "handIcon")
       .setOrigin(0.25, 0.15)
@@ -207,6 +271,9 @@ export class Game extends Phaser.Scene {
         window.clearTimeout(this.viewportLayoutTimeout);
         this.viewportLayoutTimeout = null;
       }
+      if (this.htmlTrayFill) {
+        this.htmlTrayFill.style.display = "none";
+      }
       stopNativeBgm(this.bgmAudio);
     });
 
@@ -238,12 +305,23 @@ export class Game extends Phaser.Scene {
     this.layoutGameObjects();
 
     if (this.isTutorialActive && this.currentBatch.length > 0) {
-      this.tutorialOverlay.setVisible(true).setAlpha(0.75);
+      if (this.tutorialCanvasBackfill) {
+        this.tutorialCanvasBackfill.setVisible(false);
+      }
+      this.tutorialOverlay.setVisible(true).setAlpha(1);
+      if (this.htmlTutorialOverlay) {
+        this.htmlTutorialOverlay.style.display = "block";
+        this.htmlTutorialOverlay.style.opacity = "1";
+      }
+      this.setTutorialBackdropActive(true);
       const firstSticker = this.currentBatch[0];
       const draggable = this.draggableNodes.get(firstSticker.id);
       const target = this.targetNodes.get(firstSticker.id);
 
-      if (draggable) draggable.setDepth(245);
+      this.currentBatch.forEach((sticker) => {
+        const trayItem = this.draggableNodes.get(sticker.id);
+        if (trayItem) trayItem.setDepth(245);
+      });
       if (target) target.setDepth(242);
 
       this.clearIdleGuide();
@@ -263,6 +341,7 @@ export class Game extends Phaser.Scene {
     // but keep it behind the tray (which is 100)
     const container = this.add.container(0, 0).setDepth(90 + depth);
     const outline = this.add.image(0, 0, sticker.numberKey).setOrigin(0.5);
+    const targetBadgeCircle = this.add.circle(numX, numY, 30, 0xffffff, 1).setStrokeStyle(4, 0x222222, 1);
     const number = this.add
       .text(numX, numY, String(sticker.id), {
         fontFamily: "Arial",
@@ -273,9 +352,10 @@ export class Game extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    container.add([outline, number]);
+    container.add([outline, targetBadgeCircle, number]);
     container.sticker = sticker;
     container.outline = outline;
+    container.targetBadgeCircle = targetBadgeCircle;
     container.number = number;
     container.pulseTween = null;
     container.isPlaced = false;
@@ -367,6 +447,57 @@ export class Game extends Phaser.Scene {
     this.targetNodes.forEach((target) => this.stopTargetPulse(target));
   }
 
+  setPageBackground(background) {
+    [
+      document.documentElement,
+      document.body,
+      document.getElementById("app"),
+      document.getElementById("ad-container"),
+      this.game?.canvas,
+    ].forEach((element) => {
+      if (element) {
+        element.style.background = background;
+      }
+    });
+  }
+
+  getTutorialEdgeBackground() {
+    return GAME_BACKGROUND_GRADIENT;
+  }
+
+  setTutorialBackdropActive(isActive) {
+    this.isTutorialBackdropActive = isActive;
+    
+    // 1. Default: set everything to the gradient
+    this.setPageBackground(GAME_BACKGROUND_GRADIENT);
+    
+    if (isActive) {
+      // 2. Override the containers BEHIND the canvas to be dark grey.
+      // This turns the white letterboxing margins into dark grey!
+      [
+        document.documentElement,
+        document.body,
+        document.getElementById("app"),
+        document.getElementById("ad-container")
+      ].forEach((element) => {
+        if (element) {
+          element.style.background = TUTORIAL_EDGE_FILL_COLOR;
+        }
+      });
+      // Note: this.game?.canvas still perfectly keeps the GAME_BACKGROUND_GRADIENT!
+    }
+
+    if (this.htmlTrayFill) {
+      this.htmlTrayFill.style.backgroundColor = isActive ? TUTORIAL_TRAY_FILL_COLOR : TRAY_FILL_CSS_COLOR;
+    }
+  }
+
+  refreshTutorialBackdrop() {
+    if (this.isTutorialBackdropActive) {
+      this.setTutorialBackdropActive(true);
+    }
+  }
+
   applyBackgroundLayout(width, height, isLandscape, viewportAspect) {
     if (!this.background) {
       return;
@@ -408,10 +539,17 @@ export class Game extends Phaser.Scene {
     const isLandscape = viewportWidth > viewportHeight;
 
     if (this.tutorialOverlay) {
-      this.tutorialOverlay.setPosition(0, 0).setSize(width, height);
+      this.tutorialOverlay
+        .setPosition(width * 0.5, height * 0.5)
+        .setDisplaySize(TUTORIAL_OVERLAY_SIZE, TUTORIAL_OVERLAY_SIZE);
     }
-
+    if (this.tutorialCanvasBackfill) {
+      this.tutorialCanvasBackfill
+        .setPosition(width * 0.5, height * 0.5)
+        .setDisplaySize(TUTORIAL_OVERLAY_SIZE, TUTORIAL_OVERLAY_SIZE);
+    }
     this.applyBackgroundLayout(width, height, isLandscape, viewportAspect);
+
     this.currentLayout = this.computeLayout(width, height, isLandscape);
     this.layoutGameObjects();
 
@@ -474,12 +612,21 @@ export class Game extends Phaser.Scene {
     }
 
     const layout = this.currentLayout;
-    if (this.tray) {
-      this.tray
-        .setPosition(layout.board.x + layout.board.width * 0.5, layout.trayY)
-        .setDisplaySize(layout.width, layout.trayHeight)
+    if (this.trayFill) {
+      this.trayFill
+        .setPosition(layout.width * 0.5, layout.trayY + 12)
+        .setDisplaySize(layout.width * 5, layout.trayHeight + 24)
         .setDepth(200);
     }
+    if (this.htmlTrayFill) {
+      this.htmlTrayFill.style.display = "block";
+      this.htmlTrayFill.style.height = `${Math.ceil(layout.trayHeight + 24)}px`;
+      this.htmlTrayFill.style.backgroundColor = this.isTutorialBackdropActive
+        ? TUTORIAL_TRAY_FILL_COLOR
+        : TRAY_FILL_CSS_COLOR;
+      this.htmlTrayFill.style.zIndex = "1";
+    }
+    this.refreshTutorialBackdrop();
 
     this.targetNodes.forEach((target) => {
       const targetLayout = TARGET_LAYOUT[target.sticker.id];
@@ -575,12 +722,31 @@ export class Game extends Phaser.Scene {
     if (this.isTutorialActive) {
       this.isTutorialActive = false;
       if (this.tutorialOverlay) {
-        this.tutorialOverlay.disableInteractive();
         this.tweens.add({
           targets: this.tutorialOverlay,
           alpha: 0,
           duration: 300,
-          onComplete: () => this.tutorialOverlay.setVisible(false)
+          onComplete: () => {
+            this.tutorialOverlay.setVisible(false);
+            if (this.tutorialCanvasBackfill) {
+              this.tutorialCanvasBackfill.setVisible(false);
+            }
+          }
+        });
+      }
+      if (this.htmlTutorialOverlay) {
+        this.htmlTutorialOverlay.style.transition = "opacity 0.3s";
+        this.htmlTutorialOverlay.style.opacity = "0";
+        setTimeout(() => {
+          if (this.htmlTutorialOverlay) this.htmlTutorialOverlay.style.display = "none";
+          this.setTutorialBackdropActive(false);
+        }, 300);
+      } else {
+        this.time.delayedCall(300, () => {
+          this.setTutorialBackdropActive(false);
+          if (this.tutorialCanvasBackfill) {
+            this.tutorialCanvasBackfill.setVisible(false);
+          }
         });
       }
       const firstSticker = this.currentBatch[0];
@@ -883,12 +1049,12 @@ export class Game extends Phaser.Scene {
       this.background.setTexture("backgroundBgColoredExtended1");
       this.applyResponsiveLayout(this.scale.gameSize);
     }
-    const gradient = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000 calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.3% + .5px), #F8E6BA 100%)";
-    document.body.style.background = gradient;
-    const app = document.getElementById("app");
-    if (app) app.style.background = gradient;
-    if (this.tray) {
-      this.tray.setVisible(false);
+    this.setPageBackground(END_BACKGROUND_GRADIENT);
+    if (this.trayFill) {
+      this.trayFill.setVisible(false);
+    }
+    if (this.htmlTrayFill) {
+      this.htmlTrayFill.style.display = "none";
     }
     this.playBackgroundCompleteBurst();
     this.sound.play("finished", { volume: 0.4 });

@@ -33,15 +33,9 @@ function bindResponsiveResize(game) {
   const shouldRunDelayedResize = isIpadScreen();
 
   const getViewportSize = () => {
-    if (window.visualViewport) {
-      return {
-        width: Math.max(Math.round(window.visualViewport.width), 1),
-        height: Math.max(Math.round(window.visualViewport.height), 1),
-      };
-    }
     return {
-      width: Math.max(window.innerWidth, 1),
-      height: Math.max(window.innerHeight, 1),
+      width: Math.max(Math.ceil(document.documentElement.clientWidth), Math.ceil(window.innerWidth), 1),
+      height: Math.max(Math.ceil(document.documentElement.clientHeight), Math.ceil(window.innerHeight), 1),
     };
   };
 
@@ -55,16 +49,26 @@ function bindResponsiveResize(game) {
     const app = document.getElementById("app");
 
     if (container) {
-      container.style.width = `${width}px`;
-      container.style.height = `${height}px`;
+      container.style.setProperty("width", "100%", "important");
+      container.style.setProperty("height", "100%", "important");
+      container.style.setProperty("margin", "0", "important");
+      container.style.setProperty("padding", "0", "important");
     }
     if (app) {
-      app.style.width = `${width}px`;
-      app.style.height = `${height}px`;
+      app.style.setProperty("width", "100vw", "important");
+      app.style.setProperty("height", "100vh", "important");
+      app.style.setProperty("margin", "0", "important");
+      app.style.setProperty("padding", "0", "important");
     }
 
     game.scale.resize(width, height);
     game.scale.refresh();
+    
+    if (game.canvas) {
+      game.canvas.style.setProperty("width", "100%", "important");
+      game.canvas.style.setProperty("height", "100%", "important");
+      game.canvas.style.display = "block";
+    }
   };
 
   let rafId = null;

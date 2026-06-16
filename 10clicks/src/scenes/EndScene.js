@@ -21,9 +21,9 @@ export class EndScene extends Phaser.Scene {
     this.ctaTween = null;
     this.viewportLayoutTimeout = null;
 
-    document.body.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000ff calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.31% + .5px), #F8E6BA 100%)";
+    document.body.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #444343ff calc(33.3% - .3px), #6e6c6cff calc(33.4% + .3px), #F8E6BA calc(33.33% + .5px), #F8E6BA 100%)";
     const app = document.getElementById("app");
-    if (app) app.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #000000 calc(33.3% - .5px), #000000 calc(33.3% + .5px), #F8E6BA calc(33.31% + .5px), #F8E6BA 100%)";
+    if (app) app.style.background = "linear-gradient(to bottom, #FADBF1 0%, #FADBF1 calc(33.3% - .5px), #444343ff calc(33.3% - .3px), #6e6c6cff calc(33.4% + .3px), #F8E6BA calc(33.33% + .5px), #F8E6BA 100%)";
 
     this.overlay = this.add.rectangle(0, 0, 1, 1, 0x000000, 0.25).setOrigin(0);
     this.logo = this.add.image(0, 0, "logo").setOrigin(0.5);
@@ -105,14 +105,14 @@ export class EndScene extends Phaser.Scene {
     if (gameScene && gameScene.backgroundBounds) {
       // Just so we can calculate if needed, but we force full screen for overlay
     }
-    this.overlay.setPosition(0, 0).setSize(width, height).setDepth(1);
+    this.overlay.setPosition(centerX, centerY).setDisplaySize(5000, 5000).setOrigin(0.5).setDepth(1);
 
     const logoTargetWidth = isLandscape
-      ? Phaser.Math.Clamp(width * 0.28, 220, 460)
-      : Phaser.Math.Clamp(width * 0.68, 250, 520);
+      ? Phaser.Math.Clamp(width * 0.24, 180, 400)
+      : Phaser.Math.Clamp(width * 0.55, 200, 420);
     const ctaTargetWidth = isLandscape
-      ? Phaser.Math.Clamp(width * 0.28, 230, 470)
-      : Phaser.Math.Clamp(width * 0.72, 280, 560);
+      ? Phaser.Math.Clamp(width * 0.24, 190, 420)
+      : Phaser.Math.Clamp(width * 0.60, 220, 460);
     const groupGap = isLandscape ? height * 0.06 : height * 0.035;
     const logoScale = logoTargetWidth / Math.max(this.logo.width || 1, 1);
     const ctaScale = ctaTargetWidth / Math.max(this.cta.width || 1, 1);
